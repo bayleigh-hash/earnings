@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Short Form King · Earnings Tracker</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
+
+:root {
+  --bg: #0a0a0f; --surface: #111118; --border: #1e1e2e;
+  --green: #00e5a0; --blue: #4d9fff; --amber: #ffb84d;
+  --purple: #a78bfa; --red: #ff5f5f; --pink: #f472b6;
+  --text: #f0f0f8; --muted: #6b6b8a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Syne',sans-serif; min-height:100vh; padding:24px; }
+
+.header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px; }
+.header h1 { font-size:13px; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); }
+.header-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.presets { display:flex; gap:6px; flex-wrap:wrap; }
+.preset-btn { background:var(--surface); border:1px solid var(--border); color:var(--muted); padding:5px 12px; border-radius:999px; font-family:'DM Mono',monospace; font-size:10px; cursor:pointer; transition:all .15s; }
+.preset-btn:hover, .preset-btn.active { border-color:var(--green); color:var(--green); background:rgba(0,229,160,.06); }
+.date-row { display:flex; align-items:center; gap:8px; }
+.date-sep { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); }
+.date-input { background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:'DM Mono',monospace; font-size:11px; padding:5px 10px; outline:none; color-scheme:dark; width:130px; }
+.date-input:focus { border-color:var(--green); }
+.refresh-btn { background:var(--surface); border:1px solid var(--border); color:var(--muted); padding:6px 14px; border-radius:6px; font-family:'DM Mono',monospace; font-size:11px; cursor:pointer; transition:all .2s; }
+.refresh-btn:hover { border-color:var(--green); color:var(--green); }
+.refresh-btn:disabled { opacity:.4; cursor:not-allowed; }
+.divider { height:1px; background:var(--border); margin-bottom:16px; }
+
+.loading { display:flex; align-items:center; gap:12px; padding:40px 0; font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); }
+.spinner { width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--green); border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.error { background:rgba(255,95,95,.08); border:1px solid rgba(255,95,95,.2); border-radius:10px; padding:16px 20px; font-family:'DM Mono',monospace; font-size:12px; color:var(--red); }
+
+/* Section titles */
+.section-title { font-size:10px; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; margin-top:20px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.section-title:first-child { margin-top:0; }
+
+/* COO card */
+.coo-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px 24px; margin-bottom:12px; position:relative; overflow:hidden; }
+.coo-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--amber); }
+.coo-name { font-size:16px; font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.role-badge { font-family:'DM Mono',monospace; font-size:9px; font-weight:500; padding:2px 8px; border-radius:999px; background:rgba(255,184,77,.1); color:var(--amber); border:1px solid rgba(255,184,77,.2); }
+.coo-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.stat { background:#0d0d15; border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+.stat-lbl { font-size:9px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+.stat-val { font-family:'DM Mono',monospace; font-size:22px; font-weight:500; line-height:1; }
+.stat-val.earned { color:var(--green); }
+.stat-val.pending { color:var(--amber); }
+.stat-val.total { color:var(--text); }
+.stat-sub { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); margin-top:4px; }
+
+/* Person cards grid */
+.cards-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px,1fr)); gap:12px; margin-bottom:12px; }
+.person-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; }
+.person-card.setter::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--blue); }
+.person-card.csm::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--purple); }
+.person-name { font-size:14px; font-weight:700; margin-bottom:4px; display:flex; align-items:center; gap:8px; }
+.setter-badge { font-family:'DM Mono',monospace; font-size:9px; padding:2px 8px; border-radius:999px; background:rgba(77,159,255,.1); color:var(--blue); border:1px solid rgba(77,159,255,.2); }
+.csm-badge { font-family:'DM Mono',monospace; font-size:9px; padding:2px 8px; border-radius:999px; background:rgba(167,139,250,.1); color:var(--purple); border:1px solid rgba(167,139,250,.2); }
+.person-deals { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); margin-bottom:14px; }
+.person-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.ps { background:#0d0d15; border:1px solid var(--border); border-radius:7px; padding:10px 12px; }
+.ps-lbl { font-size:8px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+.ps-val { font-family:'DM Mono',monospace; font-size:16px; font-weight:500; }
+.ps-val.earned { color:var(--green); }
+.ps-val.pending { color:var(--amber); }
+.ps-val.total { color:var(--text); }
+
+/* Deal breakdown table */
+.deals-toggle { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); cursor:pointer; margin-top:12px; display:flex; align-items:center; gap:5px; transition:color .15s; }
+.deals-toggle:hover { color:var(--text); }
+.deals-table { margin-top:10px; display:none; }
+.deals-table.open { display:block; }
+.dt-row { display:grid; grid-template-columns:1fr 80px 80px 80px; gap:8px; padding:7px 0; border-bottom:1px solid #14141f; font-family:'DM Mono',monospace; font-size:10px; align-items:center; }
+.dt-row:last-child { border-bottom:none; }
+.dt-row.header { color:var(--muted); font-size:9px; letter-spacing:.08em; text-transform:uppercase; }
+.dt-name { font-family:'Syne',sans-serif; font-size:11px; font-weight:600; color:var(--text); }
+.dt-earned { color:var(--green); text-align:right; }
+.dt-pending { color:var(--amber); text-align:right; }
+.dt-total { color:var(--muted); text-align:right; }
+
+/* Summary bar */
+.summary-bar { background:linear-gradient(135deg,#0f0f1a,#111120); border:1px solid #252540; border-radius:12px; padding:14px 20px; display:flex; gap:14px; align-items:center; }
+.summary-icon { font-size:16px; color:var(--muted); flex-shrink:0; }
+.summary-text { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); line-height:1.7; }
+.summary-text strong { color:var(--text); }
+
+.last-updated { font-family:'DM Mono',monospace; font-size:10px; color:var(--muted); text-align:right; padding-top:8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Short Form King · Earnings Tracker</h1>
+  <div class="header-right">
+    <div class="presets">
+      <button class="preset-btn" onclick="setPreset('today',this)">Today</button>
+      <button class="preset-btn" onclick="setPreset('week',this)">This Week</button>
+      <button class="preset-btn" onclick="setPreset('month',this)">This Month</button>
+      <button class="preset-btn" onclick="setPreset('quarter',this)">This Quarter</button>
+      <button class="preset-btn active" onclick="setPreset('all',this)">All Time</button>
+    </div>
+    <div class="date-row">
+      <input type="date" class="date-input" id="dateFrom" onchange="onDateChange()">
+      <span class="date-sep">→</span>
+      <input type="date" class="date-input" id="dateTo" onchange="onDateChange()">
+    </div>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadData()">↺ Refresh</button>
+  </div>
+</div>
+<div class="divider"></div>
+<div id="app"><div class="loading"><div class="spinner"></div>Fetching live data...</div></div>
+
+<script>
+const API_KEY     = 'pit-7236385b-92df-4e5b-b225-ea07b3a32e38';
+const LOCATION_ID = 'Ssg47DJXtq6t7p6JBLG8';
+const CF_REVENUE  = 'X5tJUfY296WF3qGyCXjZ';
+const CF_CASH     = 'x93SmIL1W0ByLmIuHaVS';
+const CF_OWING    = 'hiGTkF1nvNOOLnVZzoa0';
+const CF_SET_BY   = 'jLXsp3ZPiWRzES3d5AQ0';
+const CF_CSM      = 'YTUaPGbXGkT4pKruRHQd';
+const TAGS        = ['14k pif', '21k pif', 'payment plan'];
+
+const COO_NAME    = 'Bayleigh';
+const COO_PCT     = 0.07;
+const SETTER_PCT  = 0.05;
+const CSM_PCT     = 0.10;
+
+const fmt = n => '$' + Math.round(n).toLocaleString('en-US');
+
+function parseAmt(val) {
+  if (!val) return 0;
+  const n = parseFloat(String(val).replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function getCF(contact, fieldId) {
+  const f = (contact.customFields || []).find(f => f.id === fieldId);
+  return f ? (f.value || '') : '';
+}
+
+function toDateStr(d) { return d.toISOString().split('T')[0]; }
+
+async function fetchTaggedContacts(tag) {
+  const url = `https://services.leadconnectorhq.com/contacts/?locationId=${LOCATION_ID}&query=${encodeURIComponent(tag)}&limit=100`;
+  const res = await fetch(url, { headers: { 'Authorization': `Bearer ${API_KEY}`, 'Version': '2021-07-28' } });
+  if (!res.ok) throw new Error(`GHL API ${res.status}: ${res.statusText}`);
+  const data = await res.json();
+  return (data.contacts || []).filter(c => (c.tags||[]).map(t=>t.toLowerCase()).includes(tag.toLowerCase()));
+}
+
+async function fetchAllTaggedContacts() {
+  const results = await Promise.all(TAGS.map(fetchTaggedContacts));
+  const seen = new Set(), all = [];
+  for (const batch of results)
+    for (const c of batch)
+      if (!seen.has(c.id)) { seen.add(c.id); all.push(c); }
+  return all;
+}
+
+function applyDateFilter(contacts, fromVal, toVal) {
+  if (!fromVal && !toVal) return contacts;
+  const fromDate = fromVal ? new Date(fromVal+'T00:00:00') : null;
+  const toDate   = toVal   ? new Date(toVal  +'T23:59:59') : null;
+  return contacts.filter(c => {
+    const d = new Date(c.dateUpdated || c.dateAdded);
+    if (fromDate && d < fromDate) return false;
+    if (toDate   && d > toDate)   return false;
+    return true;
+  });
+}
+
+function setPreset(preset, el) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const now = new Date(); let from='', to='';
+  if (preset==='today') { from=to=toDateStr(now); }
+  else if (preset==='week') { const d=new Date(now); d.setDate(d.getDate()-d.getDay()+(d.getDay()===0?-6:1)); from=toDateStr(d); to=toDateStr(now); }
+  else if (preset==='month') { from=toDateStr(new Date(now.getFullYear(),now.getMonth(),1)); to=toDateStr(now); }
+  else if (preset==='quarter') { const q=Math.floor(now.getMonth()/3); from=toDateStr(new Date(now.getFullYear(),q*3,1)); to=toDateStr(now); }
+  document.getElementById('dateFrom').value=from;
+  document.getElementById('dateTo').value=to;
+  loadData();
+}
+
+function onDateChange() {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  loadData();
+}
+
+function commCard(person, role, pct, deals, badgeClass, roleLabel) {
+  const earned  = deals.reduce((s,d) => s + d.cash  * pct, 0);
+  const pending = deals.reduce((s,d) => s + d.owing * pct, 0);
+  const total   = deals.reduce((s,d) => s + d.revenue * pct, 0);
+  const id = 'dt_' + person.replace(/\s+/g,'_') + '_' + role;
+
+  const rows = deals.map(d => `
+    <div class="dt-row">
+      <div class="dt-name">${d.clientName}</div>
+      <div class="dt-earned">${fmt(d.cash * pct)}</div>
+      <div class="dt-pending">${d.owing > 0 ? fmt(d.owing * pct) : '—'}</div>
+      <div class="dt-total">${fmt(d.revenue * pct)}</div>
+    </div>`).join('');
+
+  return `
+  <div class="person-card ${role}">
+    <div class="person-name">${person} <span class="${badgeClass}">${roleLabel} · ${Math.round(pct*100)}%</span></div>
+    <div class="person-deals">${deals.length} deal${deals.length!==1?'s':''}</div>
+    <div class="person-stats">
+      <div class="ps"><div class="ps-lbl">Earned</div><div class="ps-val earned">${fmt(earned)}</div></div>
+      <div class="ps"><div class="ps-lbl">Pending</div><div class="ps-val pending">${pending>0?fmt(pending):'—'}</div></div>
+      <div class="ps"><div class="ps-lbl">Total</div><div class="ps-val total">${fmt(total)}</div></div>
+    </div>
+    <div class="deals-toggle" onclick="toggleDeals('${id}',this)">▶ Show deals</div>
+    <div class="deals-table" id="${id}">
+      <div class="dt-row header"><div>Client</div><div style="text-align:right">Earned</div><div style="text-align:right">Pending</div><div style="text-align:right">Total</div></div>
+      ${rows}
+    </div>
+  </div>`;
+}
+
+function toggleDeals(id, el) {
+  const t = document.getElementById(id);
+  t.classList.toggle('open');
+  el.textContent = t.classList.contains('open') ? '▼ Hide deals' : '▶ Show deals';
+}
+
+async function loadData() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true; btn.textContent = '↺ Loading...';
+  document.getElementById('app').innerHTML = '<div class="loading"><div class="spinner"></div>Fetching live data...</div>';
+
+  const fromVal = document.getElementById('dateFrom').value;
+  const toVal   = document.getElementById('dateTo').value;
+  const rangeLabel = fromVal&&toVal ? fromVal+' → '+toVal : fromVal ? 'From '+fromVal : toVal ? 'To '+toVal : 'All time';
+
+  try {
+    let contacts = await fetchAllTaggedContacts();
+    contacts = applyDateFilter(contacts, fromVal, toVal);
+
+    // Build deal objects
+    const deals = contacts.map(c => ({
+      clientName: c.contactName || c.firstName || '—',
+      revenue:    parseAmt(getCF(c, CF_REVENUE)),
+      cash:       parseAmt(getCF(c, CF_CASH)),
+      owing:      parseAmt(getCF(c, CF_OWING)),
+      setBy:      (getCF(c, CF_SET_BY) || '').trim(),
+      csm:        (getCF(c, CF_CSM)    || '').trim(),
+    })).filter(d => d.revenue > 0);
+
+    // ── COO ──────────────────────────────────────────────────────────────
+    const cooEarned  = deals.reduce((s,d) => s + d.cash    * COO_PCT, 0);
+    const cooPending = deals.reduce((s,d) => s + d.owing   * COO_PCT, 0);
+    const cooTotal   = deals.reduce((s,d) => s + d.revenue * COO_PCT, 0);
+
+    const cooRows = deals.map(d => `
+      <div class="dt-row">
+        <div class="dt-name">${d.clientName}</div>
+        <div class="dt-earned">${fmt(d.cash * COO_PCT)}</div>
+        <div class="dt-pending">${d.owing>0?fmt(d.owing*COO_PCT):'—'}</div>
+        <div class="dt-total">${fmt(d.revenue * COO_PCT)}</div>
+      </div>`).join('');
+
+    // ── SETTERS ──────────────────────────────────────────────────────────
+    const setterMap = {};
+    deals.forEach(d => {
+      if (!d.setBy) return;
+      if (!setterMap[d.setBy]) setterMap[d.setBy] = [];
+      setterMap[d.setBy].push(d);
+    });
+
+    // ── CSMs ─────────────────────────────────────────────────────────────
+    const csmMap = {};
+    deals.forEach(d => {
+      if (!d.csm) return;
+      if (!csmMap[d.csm]) csmMap[d.csm] = [];
+      csmMap[d.csm].push(d);
+    });
+
+    const totalPayouts = deals.reduce((s,d) => {
+      const setter = d.setBy ? d.cash * SETTER_PCT : 0;
+      const csm    = d.csm   ? d.cash * CSM_PCT    : 0;
+      return s + d.cash * COO_PCT + setter + csm;
+    }, 0);
+
+    const now = new Date().toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' });
+
+    document.getElementById('app').innerHTML = `
+
+      <div class="section-title">COO</div>
+      <div class="coo-card">
+        <div class="coo-name">${COO_NAME} <span class="role-badge">COO · 7%</span></div>
+        <div class="coo-stats">
+          <div class="stat"><div class="stat-lbl">Earned (Cash Paid)</div><div class="stat-val earned">${fmt(cooEarned)}</div><div class="stat-sub">7% of cash collected</div></div>
+          <div class="stat"><div class="stat-lbl">Pending (Owing)</div><div class="stat-val pending">${cooPending>0?fmt(cooPending):'—'}</div><div class="stat-sub">7% of remaining balances</div></div>
+          <div class="stat"><div class="stat-lbl">Total Entitled</div><div class="stat-val total">${fmt(cooTotal)}</div><div class="stat-sub">7% of all revenue</div></div>
+        </div>
+        <div class="deals-toggle" onclick="toggleDeals('coo_deals',this)">▶ Show deals</div>
+        <div class="deals-table" id="coo_deals">
+          <div class="dt-row header"><div>Client</div><div style="text-align:right">Earned</div><div style="text-align:right">Pending</div><div style="text-align:right">Total</div></div>
+          ${cooRows}
+        </div>
+      </div>
+
+      <div class="section-title">Setters · 5% of assigned deals</div>
+      <div class="cards-grid">
+        ${Object.keys(setterMap).length === 0
+          ? '<div style="font-family:DM Mono,monospace;font-size:12px;color:var(--muted);padding:20px 0">No setter data found — make sure Set By fields are filled in GHL</div>'
+          : Object.entries(setterMap).map(([name, ds]) => commCard(name, 'setter', SETTER_PCT, ds, 'setter-badge', 'Setter')).join('')
+        }
+      </div>
+
+      <div class="section-title">CSMs · 10% of assigned deals</div>
+      <div class="cards-grid">
+        ${Object.keys(csmMap).length === 0
+          ? '<div style="font-family:DM Mono,monospace;font-size:12px;color:var(--muted);padding:20px 0">No CSM data found — make sure CSM fields are filled in GHL</div>'
+          : Object.entries(csmMap).map(([name, ds]) => commCard(name, 'csm', CSM_PCT, ds, 'csm-badge', 'CSM')).join('')
+        }
+      </div>
+
+      <div class="summary-bar">
+        <div class="summary-icon">◈</div>
+        <div class="summary-text">
+          <strong>${deals.length} deals</strong> · 
+          <strong>${fmt(cooEarned)}</strong> paid to COO · 
+          <strong>${fmt(totalPayouts)}</strong> total commissions paid out · 
+          ${rangeLabel}
+        </div>
+      </div>
+
+      <div class="last-updated">Live data · ${rangeLabel} · Updated: ${now}</div>
+    `;
+
+  } catch(e) {
+    document.getElementById('app').innerHTML = `<div class="error">⚠ Error: ${e.message}</div>`;
+  }
+  btn.disabled = false; btn.textContent = '↺ Refresh';
+}
+
+loadData();
+</script>
+</body>
+</html>
